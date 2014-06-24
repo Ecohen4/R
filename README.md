@@ -1,4 +1,4 @@
 R
 =
 
-Elliot's R commands
+Elliot's R commands.  Learning to use github on June 24, 2014.
