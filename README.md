@@ -1,7 +1,6 @@
 R
 =
 
-This repository contains a handful of Elliot's general purpose R scripts.  Project-specific scripts are contained in other repos, including:
-- Rcommands
-- ECREEE
-- Cohen-McCreight.
+Elliot's R commands.  Learning to use github on June 24, 2014.
+
+Practice merge.... Revision 1.
