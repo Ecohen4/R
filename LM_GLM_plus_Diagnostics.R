@@ -1,12 +1,31 @@
 # September 17, 2013
 # CVEN6833 - Advance Data Analysis
-################# 
-################# 
+#################
+#################
 ################# Start Q1
 
-setwd("/Users/elliotcohen/Dropbox/Advance Data Analysis/HW/HW1-2013")
-#Import data: Mean annual precipitation at 491 locations in Colorado based on data for the period 1980-2002
-data<-read.table(file="/Users/elliotcohen/Dropbox/Data/Climate/Rainfall/Colorado_Annual_Precip_Gridded.csv", sep=",", header=TRUE)
+## setwd, unless working in a project with all dependencies included in the project directory
+## setwd("/Users/elliotcohen/Dropbox/Advance Data Analysis/HW/HW1-2013")
+
+## load libraries.
+## If a library cannot be found in your instance of Rstudio, it will automatically be insalled.
+load_install<-function(lib){
+  if(! require(lib, character.only=TRUE)) install.packages(lib, character.only=TRUE)
+  library(lib, character.only=TRUE)
+}
+
+## the required libraries (e.g. packages)
+Thelib<-c("akima", "fields", "MASS") # "MASS" - step AIC function; "akima" - interp function; "fields" - surface function.
+
+## apply the function
+lapply(Thelib, load_install)
+
+## load custom functions
+source("myboxplot.r")
+source("skew.r")
+
+# Import data: Mean annual precipitation at 491 locations in Colorado based on data for the period 1980-2002
+data<-read.table(file="Colorado_Annual_Precip_Gridded.csv", sep=",", header=TRUE)
 data<-as.data.frame(data)
 X<-data[,-4]  # df of Independent variable
 Y<-data$Precip #vector of dependent variable (annual rainfall at lat-long position)
@@ -21,73 +40,73 @@ bestmodel<-stepAIC(lm)
 nX<-length(bestmodel$coefficients)
 X<-subset(data, select=names(bestmodel$coefficients)[2:nX]) #subset X based on best model regressor variables..
 
-#ii. Perform ANOVA (i.e. model significance) and model diagnostics (i.e., check the assumptions of the residuals – Normality, independence, homoskedasticity). 
+#ii. Perform ANOVA (i.e. model significance) and model diagnostics (i.e., check the assumptions of the residuals – Normality, independence, homoskedasticity).
 summary(bestmodel) #"bestmodel" has longitutde as only predictor variable
 #Note: other models have similar AIC values, indicating that "best" model may not be that much better than the next best model.
 
 # Model diagnostics
 par(mfrow=c(2,2))
 plot(bestmodel)
-dev.copy(png,paste(bestmodel$call[1],"model_diagnostics", sep="_"))
-dev.off()
+# dev.copy(png,paste(bestmodel$call[1],"model_diagnostics", sep="_"))
+# dev.off()
 
 # Results: visual inspection of plot 1 finds that residuals increase for larger values of the response variable yhat, indicating that the model does *not* capture certains attributes of the data (perhaps non-linearities); Plot 2 (Q-Q plot) shows that residuals are *not* distributed normally at the upper tail. In summary, at least 2 of the model diagnostics suggest that the linear model is inadequate for this data set.
 
 # can also use custom-built  model diagnostics...
 ####### Manual Model Diagnostics (6 visual checks) ############
 GLMdiagnostics<- function(bestmodel, X, Y){
-  
+
   # Get the residuals of the model..
   modresid=residuals(bestmodel)
   nX<-length(bestmodel$coefficients)
   Yhat=Y-modresid  #residuals = Y - Yestimate ==> Yestimate = Y - residuals
   k=dim(X)[2]      #number of regressor variables
-  p=k+1            #number of model parameters 
+  p=k+1            #number of model parameters
   n=length(Y)
-  
+
   # Compute ANOVA quantities for use down below
   #SST = Total corrected sum of squares, n-1 dof
   #SSR = Regression Sum of Squares = sum[(yhati-ybar)^2], dof = k (number of predictor  variables)
-  #SSE = Error Sum of Squares = sum[(yi-yhati)^2], dof = n-p 
-  #Yhat = Y - bestGlm$res 
+  #SSE = Error Sum of Squares = sum[(yi-yhati)^2], dof = n-p
+  #Yhat = Y - bestGlm$res
   #(Y - Yhat = residuals), Yhat is the modeled response of Y
-  SST = sum((Y - mean(Y))^2)   
-  SSR = sum((Yhat - mean(Y))^2)  
-  SSE = sum((modresid)^2)   
-  MSR = SSR / ncol(X)            
-  MSE = SSE/(n - length(bestmodel$coef))         
-  
+  SST = sum((Y - mean(Y))^2)
+  SSR = sum((Yhat - mean(Y))^2)
+  SSE = sum((modresid)^2)
+  MSR = SSR / ncol(X)
+  MSE = SSE/(n - length(bestmodel$coef))
+
   # Now start computing diagnostics and plotting them...
-  par(mfrow=c(2,p)) 
-  
+  par(mfrow=c(2,p))
+
   # (1) Check if residuals fit a normal distribution
   qqnorm(modresid)
-  qqline(modresid)	
-  
+  qqline(modresid)
+
 #   jpeg(filename=paste(bestmodel$call[1],"Q-Q plot", sep="_"))
 #   plot(bestmodel)
 #   dev.off()
-  
+
   # (2-3) Plot the residuals vs X.  Check to make sure there is *no* apparent pattern.  Distribution of residuals should be random.
   for(i in 1:k){
-    plot(X[,i],modresid,xlab="X",ylab="residuals",main="Residuals vs. X[,i]") 
+    plot(X[,i],modresid,xlab="X",ylab="residuals",main="Residuals vs. X[,i]")
   }
-  
-  # (4) Plot the residuals vs the model estimates of Y. 
+
+  # (4) Plot the residuals vs the model estimates of Y.
   #Check to make sure there is *no* apparent pattern or structure.  In other words, the distribution of the residuals should look random.
   plot(Yhat,modresid,xlab="estiimate of Y", ylab="residuals",main="Residuals vs Fitted Y")
-  
-  # (5) Plot the autocorrelation function - to make sure the residuals are *not* related to each other.  
+
+  # (5) Plot the autocorrelation function - to make sure the residuals are *not* related to each other.
   z1=acf(modresid,main="autocorrelation of residuals")
-  
+
 #   # (6) Cooks Distance - to make sure outliers do not exert undue influence on the regression model.
-#   
+#
 #   # Compute the Hat matrix
 #   #hatm= hatvalues(bestmodel)
 #   XX<-cbind(rep(1,n),X) # augmented X matrix
 #   XX<-as.matrix(XX)
 #   hatm<-XX %*% solve(t(XX) %*% XX) %*% t(XX)
-#   
+#
 #   #studentized residuals - ri  - equation 12-42
 #   # ri = modresid/sqrt((1 - diag(hatm)) * MSE) #if using hatvalues(bestmodel)
 #   ri = modresid/sqrt((1-hatm) * MSE)
@@ -98,14 +117,15 @@ GLMdiagnostics<- function(bestmodel, X, Y){
 
 }
 ###############################
+
 # Now impliment my model diagnostics function
 GLMdiagnostics(bestmodel, X, Y)
-dev.copy(png,paste(bestmodel$call[1],"model_diagnostics", sep="_"))
-dev.off()
+# dev.copy(png,paste(bestmodel$call[1],"model_diagnostics", sep="_"))
+# dev.off()
 
-# Comments on Model Diagnostics: 
+# Comments on Model Diagnostics:
 # The Q-Q plot reveals non-normality at the upper tail
-# Plot of residuals vs model estimates of Y reveals heteroscdasticity. 
+# Plot of residuals vs model estimates of Y reveals heteroscdasticity.
 #### END MODEL DIAGNOSTICS ####
 #### END PART (ii) ####
 
@@ -132,30 +152,32 @@ for(i in 1:n){
   index1=index[index != i] #drop one observation at a time
   Xval=X[index1,] #X data less the dropped observation
   Yval=Y[index1]  #Y data less the dropped observation
-  
+
   zz=lsfit(Xval,Yval) #re-fit the model without the dropped observation
-  
+
   xpred=c(1,X[i,1:nvar]) #now estimate at the point that was dropped
   xpred<-as.numeric(xpred)
   yest[i]=sum(zz$coef * xpred)
 }
+
 #now surface the x-validated estimates..
 points(Y, yest, col="blue", pch=20)
 
-# save plot
-dev.copy(png,paste(bestmodel$call[1],"cross-validated estimates", sep="_"))
-dev.off()
+# # save plot
+# dev.copy(png,paste(bestmodel$call[1],"cross-validated estimates", sep="_"))
+# dev.off()
 
 # Comments:  Cross-validated model estimates and estimates modeled on the full data set appear internally consistent to each other, but niether are accurate to observed precipitation values for larger values of precip (e.g. above 800 mm/yr).
 
-# iv. Drop 10% of observations, fit the model (i.e., the ‘best’ model from i. above) to the rest of the data and predict the dropped points. Compute RMSE and R2 and show them as boxplots. 
+# iv. Drop 10% of observations, fit the model (i.e., the ‘best’ model from i. above) to the rest of the data and predict the dropped points. Compute RMSE and R2 and show them as boxplots.
 # Drop some % of points, fit the model and predict the dropped points..
-library(arules)
-source("/Users/elliotcohen/Dropbox/Advance Data Analysis/R source files/myboxplot-stats.r")
-source("/Users/elliotcohen/Dropbox/Advance Data Analysis/R source files/myboxplot.r")
+# library(arules)
+
+source("myboxplot-stats.r")
+source("myboxplot.r")
 nsim = 500
 rmseskill=1:nsim
-corskill=1:nsim  
+corskill=1:nsim
 N = length(Y)
 N10 = round(0.10*N)  	#choose % of points to drop (e.g. 10%)
 index=1:N
@@ -171,7 +193,7 @@ for(i in 1:nsim){
   xpred<-as.data.frame(X[drop,])
   xx<-as.data.frame(xpred) #assign dropped data to xx
   yhat<-predict.lm(zz, newdata=xx) #predict at dropped points using model fit w.out those points
-  #Warning message:'newdata' had 49 rows but variable(s) found have 442 rows 
+  #Warning message:'newdata' had 49 rows but variable(s) found have 442 rows
   rmseskill[i]<-sqrt(mean(Y[drop]-yhat)^2)
   corskill[i]<-cor(Y[drop],yhat)
 }
@@ -194,14 +216,14 @@ title(main="Cor skill")
 #dev.copy(png,paste(bestmodel$call[1],"RMSE and COR skill", sep="_"))
 #dev.off()
 
-#v. Make a 3-D plot (or spatial colored/contour map) of model estimates (i.e. latitude, longitude and the model estimates) and model error. 
+#v. Make a 3-D plot (or spatial colored/contour map) of model estimates (i.e. latitude, longitude and the model estimates) and model error.
 # (v) Spatial map of actual precipitation, model estimates, and model error
 plot.new()
 par(mfrow=c(2,2))
 par(mar=c(5,4,4,2) + 0.1) #A numerical vector of the form c(bottom, left, top, right) which gives the number of lines of margin to be specified on the four sides of the plot. The default is c(5, 4, 4, 2) + 0.1.
 
-library(akima)
-library(fields)
+# library(akima)
+# library(fields)
 zz0<-interp(x=data$Long, y=data$Lat, z=data$Precip, duplicate="mean")
 image.plot(zz0, col=topo.colors(n=20,alpha=0.5), ylab="latitude", xlab="longitude", main="Observed Precipitation (mm)")
 contour(zz0, add=T)
@@ -235,29 +257,28 @@ Xpred<-predpoints #gridded lat, long and elev
 ypred = predict.lm(bestmodel,newdata=predpoints, type="response",se.fit=TRUE)
 
 # Create spatial plot - Latitude, Longitude and the predicted value..
-# since the predpoints are on a unifrom spatial grid but not on 
+# since the predpoints are on a unifrom spatial grid but not on
 # rectangular grid we can do the following..
 
-library(akima)
+# library(akima)
 zz = interp(predpoints$Long,predpoints$Lat,ypred$fit)
 
-library(fields)
+# library(fields)
 surface(zz,xlab="Longitude",ylab ="Latitude", main="DEM Grid Predictions")
 
-# save plot
-dev.copy(png,paste(bestmodel$call[1],"Contour Plots", sep="_"))
-dev.off()
+# # save plot
+# dev.copy(png,paste(bestmodel$call[1],"Contour Plots", sep="_"))
+# dev.off()
 
 # Discussion
 # LM does not capture non-linearities and complexity inherent in the data
-# LM attempts to "spread" precipitation evenly across the state, decreasing from West to East.  As can be seen in the LM residuals plot, the residuals explain most of the variance in the data, not the model, indicating that the model is inadequate.  
+# LM attempts to "spread" precipitation evenly across the state, decreasing from West to East.  As can be seen in the LM residuals plot, the residuals explain most of the variance in the data, not the model, indicating that the model is inadequate.
 
 # See plots
 ################# End Q1
-################# 
+#################
 ################# Start Q2
 ## repeat Q1 with GLM....
-setwd("/Users/elliotcohen/Dropbox/Advance Data Analysis/HW/HW1-2013")
 #Import data
 #Mean annual precipitation at 491 locations in Colorado based on data for the period 1980-2002
 data<-read.table(file="/Users/elliotcohen/Dropbox/Data/Climate/Rainfall/Colorado_Annual_Precip_Gridded.csv", sep=",", header=TRUE)
@@ -276,7 +297,7 @@ summary(glm)
 require(MASS)
 bestglm<-stepAIC(glm)
 
-#ii. Perform ANOVA (i.e. model significance) and model diagnostics (i.e., check the assumptions of the residuals – Normality, independence,homoskedasticity). 
+#ii. Perform ANOVA (i.e. model significance) and model diagnostics (i.e., check the assumptions of the residuals – Normality, independence,homoskedasticity).
 summary(bestglm) #"bestglm" has longitutde as only predictor variable
 #Note: other models have similar AIC values, indicating that "best" model may not be that much better than the next best model.
 
@@ -295,7 +316,7 @@ plot(bestglm)
 # can also use custom-built  model diagnostics...
 ##### Manual Model Diagnostics (6 visual checks) #####
 par(mar=c(4,4,4,2) + 0.1)
-par(mfrow=c(2,3)) 
+par(mfrow=c(2,3))
 
 #But here is how to do it manually...
 # Get the residuals of the model..
@@ -306,35 +327,35 @@ nX<-length(bestglm$coefficients)
 X=subset(data, select=names(bestglm$coefficients)[2:nX])
 Yhat=Y-modresid  #residuals = Y - Yestimate ==> Yestimate = Y - residuals
 k=dim(X)[2]      #number of regressor variables
-p=k+1              #number of model parameters 
+p=k+1              #number of model parameters
 n=length(Y)
 
 # Compute ANOVA quantities for use down below
 SST = sum((Y - mean(Y))^2)   #SST = Total corrected sum of squares, n-1 dof
-#Yhat = Y - bestGlm$res 
+#Yhat = Y - bestGlm$res
 #(Y - Yhat = residuals), Yhat is the modeled response of Y
 SSR = sum((Yhat - mean(Y))^2)  #SSR = Regression Sum of Squares = sum[(yhati-ybar)^2], dof = k (number of predictor  variables)
-SSE = sum((modresid)^2)   #SSE = Error Sum of Squares = sum[(yi-yhati)^2], dof = n-p 
-MSR = SSR / ncol(X)            
-MSE = SSE/(n - length(bestglm$coef))         
+SSE = sum((modresid)^2)   #SSE = Error Sum of Squares = sum[(yi-yhati)^2], dof = n-p
+MSR = SSR / ncol(X)
+MSE = SSE/(n - length(bestglm$coef))
 
 # Now start computing diagnostics and plotting them...
 par(mfrow=c(2,3))
 
 # (1) Check if residuals fit a normal distribution
 qqnorm(modresid)
-qqline(modresid)	
+qqline(modresid)
 
 # (2-3) Plot the residuals vs X.  Check to make sure there is *no* apparent pattern.  Distribution of residuals should be random.
 for(i in 1:k){
-  plot(X[,i],modresid,xlab="X",ylab="residuals",main="Residuals vs. X[i]") 
+  plot(X[,i],modresid,xlab="X",ylab="residuals",main="Residuals vs. X[i]")
 }
 
-# (4) Plot the residuals vs the model estimates of Y. 
+# (4) Plot the residuals vs the model estimates of Y.
 #Check to make sure there is *no* apparent pattern or structure.  In other words, the distribution of the residuals should look random.
 plot(Yhat,modresid,xlab="estiimate of Y", ylab="residuals",main="Residuals vs model estimates of Y")
 
-# (5) Plot the autocorrelation function - to make sure the residuals are *not* related to each other.  
+# (5) Plot the autocorrelation function - to make sure the residuals are *not* related to each other.
 z1=acf(modresid,main="autocorrelation of residuals")
 
 # (6) Cooks Distance - to make sure outliers do not exert undue influence on the regression model.
@@ -350,7 +371,7 @@ Di = ri*ri * diag(hatm) / ((1-diag(hatm)) * length(bestglm$coef))
 plot(Y, diag(Di), main="Cook's Distance")
 #If Dis are greater than 1 then there are points that have undue influence on the fit.
 
-# Comments on Model Diagnostics: 
+# Comments on Model Diagnostics:
 # The Q-Q plot looks good
 # Plot of residuals vs model estimates of Y reveals EXTREME heteroscdasticity.
 # Autocorrelation appears to be present up to lag 3.
@@ -380,9 +401,9 @@ for(i in 1:n){
   index1=index[index != i] #drop one observation at a time
   Xval=X[index1,] #X data less the dropped observation
   Yval=Y[index1]  #Y data less the dropped observation
-  
+
   zz=lsfit(Xval,Yval) #re-fit the model without the dropped observation
-  
+
   xpred=c(1,X[i,1:nvar]) #now estimate at the point that was dropped
   xpred<-as.numeric(xpred)
   yest[i]=sum(zz$coef * xpred)
@@ -392,14 +413,13 @@ points(Y, yest, col="blue", pch=20)
 
 # Comments:  Cross-validated model estimates and estimates modeled on the full data set appear internally consistent to each other, but niether are accurate to observed precipitation values for larger values of precip (e.g. above 800 mm/yr).
 
-# iv. Drop 10% of observations, fit the model (i.e., the ‘best’ model from i. above) to the rest of the data and predict the dropped points. Compute RMSE and R2 and show them as boxplots. 
+# iv. Drop 10% of observations, fit the model (i.e., the ‘best’ model from i. above) to the rest of the data and predict the dropped points. Compute RMSE and R2 and show them as boxplots.
 # Drop some % of points, fit the model and predict the dropped points..
-library(arules)
-source("/Users/elliotcohen/Dropbox/Advance Data Analysis/R source files/myboxplot-stats.r")
-source("/Users/elliotcohen/Dropbox/Advance Data Analysis/R source files/myboxplot.r")
+# library(arules)
+source("myboxplot.r")
 nsim = 500
 rmseskill=1:nsim
-corskill=1:nsim  
+corskill=1:nsim
 N = length(Y)
 N10 = round(0.10*N)  	#choose % of points to drop (e.g. 10%)
 index=1:N
@@ -435,12 +455,12 @@ zz$names=rep("",length(zz$names))
 z1=bxp(zz,xlab="",ylab="Cor",cex=1.25)
 title(main="Cor skill")
 
-#v. Make a 3-D plot (or spatial colored/contour map) of model estimates (i.e. latitude, longitude and the model estimates) and model error. 
+#v. Make a 3-D plot (or spatial colored/contour map) of model estimates (i.e. latitude, longitude and the model estimates) and model error.
 # (v) Spatial map of actual precipitation, model estimates, and model error
+# library(akima)
+# library(fields)
 plot.new()
 par(mfrow=c(2,2))
-library(akima)
-library(fields)
 zz0<-interp(x=data$Long, y=data$Lat, z=data$Precip, duplicate="mean")
 image.plot(zz0, col=topo.colors(n=20,alpha=0.5), ylab="latitude", xlab="longitude", main="Observed Precipitation (mm)")
 contour(zz0, add=T)
@@ -480,14 +500,14 @@ Xpred<-predpoints #gridded lat, long and elev
 ypred = predict.glm(bestglm,newdata=predpoints, type="response",se.fit=TRUE)
 
 # Create spatial plot - Latitude, Longitude and the predicted value..
-# since the predpoints are on a unifrom spatial grid but not on 
+# since the predpoints are on a unifrom spatial grid but not on
 # rectangular grid we can do the following..
 
-library(akima)
+# library(akima)
 zz = interp(predpoints$Long,predpoints$Lat,ypred$fit)
 
-library(fields)
-surface(zz,xlab="Longitude",ylab ="Latitude", main="DEM Grid Predictions") 
+# library(fields)
+surface(zz,xlab="Longitude",ylab ="Latitude", main="DEM Grid Predictions")
 # how to adjust color (heat) scale to match other plots???
 
 # Discussion
@@ -495,4 +515,4 @@ surface(zz,xlab="Longitude",ylab ="Latitude", main="DEM Grid Predictions")
 # GLM attempts to "spread" precipitation evenly across the state, decreasing from West to East.  As can be seen in the LM residuals plot, the errors explain most of the variance in the data, not the model, indicating that the model is inadequate.
 
 ################# End Q2
-################# 
+#################
